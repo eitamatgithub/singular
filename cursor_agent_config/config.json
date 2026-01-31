@@ -1,0 +1,15 @@
+{
+  "cursor_cli_cmd": "cursor-agent",
+  "cursor_cli_args": [],
+  "cursor_timeout_s": 3600,
+  "workspace_dir": "./poc_workspace",
+  "max_iters": 8,
+  "output_ipy_path": "./final_notebook.py",
+  "pytest_timeout_s": 1800,
+  "output_files": ["solution.py", "test_solution.py"],
+  "prompts": {
+    "kpis": "prompts/kpis.md",
+    "initial": "prompts/initial.md",
+    "repair": "prompts/repair.md"
+  }
+}
