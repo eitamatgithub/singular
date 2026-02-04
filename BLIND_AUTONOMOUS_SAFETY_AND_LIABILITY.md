@@ -3,7 +3,7 @@
 
 Use blind-autonomous mode only at your own risk and liability. Before enabling it, make sure you understand the kinds of code likely to be produced and executed (both the solution and the tests), and the general risks of running unattended code (e.g. unexpected file/network access, data exfiltration, cost overruns, or irreversible changes).
 
-Remember not to use Singularity in any mode for malicious or adverserial purposes, cyber-attack–related prompts, or jailbreaking attempts. If you do so, you assume full responsibility for your actions; the Singularity authors and contributors bear no responsibility or liability. If your project touches on or approaches such areas, it is your sole responsibility to carefully review all generated code before each execution. If you are unsure whether your prompt might unintentionally produce such code, err on the side of caution: review every iteration and do not use **blind-autonomous** mode.
+Remember not to use SingULAR in any mode for malicious or adverserial purposes, cyber-attack–related prompts, or jailbreaking attempts. If you do so, you assume full responsibility for your actions; the SingULAR authors and contributors bear no responsibility or liability. If your project touches on or approaches such areas, it is your sole responsibility to carefully review all generated code before each execution. If you are unsure whether your prompt might unintentionally produce such code, err on the side of caution: review every iteration and do not use **blind-autonomous** mode.
 
 The blind-autonomous mode carries inherent security risks and **must only be used in a sterile, disposable environment**.
 
@@ -27,7 +27,7 @@ Running blind-autonomous mode outside of Colab is **not recommended** unless you
 - build an equivalent sterile environment (e.g. MicroVMs), or
 - are an experienced Docker user who fully understands and accepts the risks
 
-If you're eager to try blind mode anyway, a good practice would be to first see if your projects run in enough iterations to justify not reviewing them. Note that it is possible the fact that Singularity sends Cursor reports on a specific task will fine tune the agent's user-specific resources, so running the same or similar tasks over and over might make Singularity run in fewer iterations.
+If you're eager to try blind mode anyway, a good practice would be to first see if your projects run in enough iterations to justify not reviewing them. Note that it is possible the fact that SingULAR sends Cursor reports on a specific task will fine tune the agent's user-specific resources, so running the same or similar tasks over and over might make SingULAR run in fewer iterations.
 
 
 ### Safety Defaults & Legal Notice

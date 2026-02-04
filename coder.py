@@ -290,6 +290,37 @@ def write_files(workspace: Path, files: Dict[str, str]) -> Tuple[Path, Path]:
     return solution, tests
 
 
+def _archive_previous_versions(workspace: Path, iteration: int) -> None:
+    archive_dir = workspace / "previous_versions"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+
+    for filename in ("solution.py", "test_solution.py"):
+        src = workspace / filename
+        if not src.exists():
+            continue
+        archived = archive_dir / f"iter_{iteration}_{filename}"
+        archived.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+
+
+def _archive_prompt_and_raw(workspace: Path, iteration: int, prompt: str, raw: str) -> None:
+    archive_dir = workspace / "previous_versions"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    (archive_dir / f"iter_{iteration}_prompt.txt").write_text(prompt, encoding="utf-8")
+    (archive_dir / f"iter_{iteration}_cursor_raw.txt").write_text(raw, encoding="utf-8")
+
+
+def _archive_test_results(
+    workspace: Path, iteration: int, returncode: int, stdout: str, stderr: str
+) -> None:
+    archive_dir = workspace / "previous_versions"
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    (archive_dir / f"iter_{iteration}_pytest_returncode.txt").write_text(
+        str(returncode), encoding="utf-8"
+    )
+    (archive_dir / f"iter_{iteration}_pytest_stdout.txt").write_text(stdout or "", encoding="utf-8")
+    (archive_dir / f"iter_{iteration}_pytest_stderr.txt").write_text(stderr or "", encoding="utf-8")
+
+
 # ---------------------------
 # Pytest runner
 # ---------------------------
@@ -336,6 +367,33 @@ def _has_required_main_notebook_call_test(tests_path: Path) -> bool:
     content = tests_path.read_text(encoding="utf-8")
     # Require a pytest test that explicitly calls main_notebook_call().
     return bool(re.search(r"def\s+test_[\s\S]*?main_notebook_call\s*\(", content))
+
+
+def _run_main_notebook_call(workspace: Path) -> Optional[str]:
+    solution_path = workspace / "solution.py"
+    if not solution_path.exists():
+        return "solution.py not found for main_notebook_call() check."
+
+    try:
+        import importlib.util
+
+        spec = importlib.util.spec_from_file_location("solution", solution_path)
+        if spec is None or spec.loader is None:
+            return "Failed to import solution.py for main_notebook_call() check."
+        module = importlib.util.module_from_spec(spec)
+        spec.loader.exec_module(module)
+    except Exception as exc:
+        return f"Error importing solution.py for main_notebook_call(): {exc}"
+
+    if not hasattr(module, "main_notebook_call"):
+        return "solution.main_notebook_call() not found."
+
+    try:
+        module.main_notebook_call()
+    except Exception as exc:
+        return f"solution.main_notebook_call() raised an exception: {exc}"
+
+    return None
 
 
 # ---------------------------
@@ -451,10 +509,13 @@ def node_generate_with_cursor(state: AgentState) -> AgentState:
         iteration=state.iteration,
     )
 
+    print("Calling Cursor CLI...")
     raw = call_cursor_cli(prompt)
+    _archive_prompt_and_raw(workspace, state.iteration, prompt, raw)
     state.last_cursor_raw = raw
 
     try:
+        _archive_previous_versions(workspace, state.iteration)
         files = parse_cursor_output(raw)
         solution, tests = write_files(workspace, files)
         state.solution_path = str(solution)
@@ -485,6 +546,13 @@ def node_run_tests(state: AgentState) -> AgentState:
             "This iteration is failed until that test exists."
         )
         state.failing_tests_estimate = 1
+        _archive_test_results(
+            workspace,
+            state.iteration,
+            state.pytest_returncode,
+            state.pytest_stdout,
+            state.pytest_stderr,
+        )
         state.history.append(
             {
                 "iteration": state.iteration,
@@ -509,11 +577,22 @@ def node_run_tests(state: AgentState) -> AgentState:
             state.stop_reason = "User declined execution in safe-interactive mode."
             return state
 
+    print("Running pytest...")
     rc, out, err, failing = run_pytest(workspace)
+    if rc == 0:
+        print("Calling main_notebook_call() for explicit check...")
+        main_call_error = _run_main_notebook_call(workspace)
+        if main_call_error:
+            rc = 1
+            err = (err + "\n" if err else "") + f"main_notebook_call check failed: {main_call_error}"
+            if not failing:
+                failing = 1
+
     state.pytest_returncode = rc
     state.pytest_stdout = out
     state.pytest_stderr = err
     state.failing_tests_estimate = failing
+    _archive_test_results(workspace, state.iteration, rc, out, err)
 
     # Record history snapshot for convergence monitoring
     state.history.append(
